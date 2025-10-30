@@ -1,0 +1,53 @@
+puppet --version
+sudo apt update
+sudo apt install puppet -y
+export PATH=/opt/puppetlabs/bin:$PATH
+
+#Creating Module
+mkdir -p ~/puppet-lab/modules/webserver/manifests
+cd ~/puppet-lab/modules/webserver/manifests
+
+nano init.pp (Ctrl + O → Enter → Ctrl + X)
+#paste below code
+#file-->modules/webserver/manifests/init.pp
+class webserver {
+
+  # Ensure Apache is installed
+  package { 'apache2':
+    ensure => installed,
+  }
+
+  # Ensure Apache service is running and enabled
+  service { 'apache2':
+    ensure => running,
+    enable => true,
+  }
+
+  # Create a test HTML file
+  file { '/var/www/html/index.html':
+    ensure  => file,
+    content => "<h1>Hello from Puppet Webserver!</h1>\n",
+    require => Package['apache2'],
+  }
+
+  # Notify block to show success message directly (no separate function)
+  notify { 'Configuration Message':
+    message => '💡 Puppet has successfully configured your Apache Webserver!',
+  }
+
+}
+
+cd ~/puppet-lab
+#file-->site.pp
+include webserver
+
+#Apply Manifest
+sudo puppet apply site.pp --modulepath=./modules
+
+#Check Apache
+sudo systemctl status apache2
+
+#Check HTML Page
+cat /var/www/html/index.html
+
+
