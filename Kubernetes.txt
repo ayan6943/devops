@@ -1,0 +1,88 @@
+#Install Kubernetes
+# Download the latest stable release of kubectl
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+
+# Make it executable
+chmod +x kubectl
+
+# Move it to your PATH
+sudo mv kubectl /usr/local/bin/
+
+# Verify installation
+kubectl version --client
+
+
+#Install Minikube
+curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+sudo install minikube-linux-amd64 /usr/local/bin/minikube
+minikube version
+
+#Launch minikube in docker
+minikube start --driver=docker
+
+
+#app.py-->
+from flask import Flask
+
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "Hello from Flask on Kubernetes!"
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
+
+#Dockerfile
+FROM python:3.9-slim
+WORKDIR /app
+COPY . .
+RUN pip install flask
+CMD ["python", "app.py"]
+
+docker build -t your-dockerhub-username/flask-kube:latest .
+docker login
+docker push your-dockerhub-username/flask-kube:latest
+
+#deployment.yaml
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flask-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: flask-app
+  template:
+    metadata:
+      labels:
+        app: flask-app
+    spec:
+      containers:
+      - name: flask-container
+        image: your-dockerhub-username/flask-kube:latest
+        ports:
+        - containerPort: 5000
+
+#Service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: flask-service
+spec:
+  selector:
+    app: flask-app
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 5000
+  type: NodePort
+
+#Deploy to Kubernetes
+kubectl apply -f deployment.yaml
+kubectl apply -f service.yaml
+
+#Access your app
+minikube service flask-service
